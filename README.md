@@ -1,5 +1,5 @@
 # Assignment 1: MPI matrix multiplication.
-Prequisites: cmake, ninja, openmpi, openblas... Just add what you lack. (e.g. `sudo apt install openmpi libopenblas-dev`)
+Prerequisites: cmake, ninja, openmpi, openblas... Just add what you lack. (e.g. `sudo apt install openmpi libopenblas-dev`)
 ```bash
 mkdir build
 cd build
