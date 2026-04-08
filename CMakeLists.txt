@@ -12,9 +12,9 @@ target_link_libraries(MPIMatrixMultiply_bsp MPI::MPI_C
                                             BLAS::BLAS
                                             m)
 target_compile_definitions(MPIMatrixMultiply_bsp PRIVATE NON_BLOCKING_COMMUNICATION=1)
-target_compile_definitions(MPIMatrixMultiply_bsp PRIVATE MPI_COMPUTATION_USE_BLAS=1)
-target_compile_definitions(MPIMatrixMultiply_bsp PRIVATE ADD_RSSEQ_COMPARE=0)
-target_compile_definitions(MPIMatrixMultiply_bsp PRIVATE REPORT_DEBUG_INFO=1)
+target_compile_definitions(MPIMatrixMultiply_bsp PRIVATE MPI_COMPUTATION_USE_BLAS=0)
+target_compile_definitions(MPIMatrixMultiply_bsp PRIVATE ADD_RSSEQ_COMPARE=1)
+target_compile_definitions(MPIMatrixMultiply_bsp PRIVATE REPORT_DEBUG_INFO=0)
 
 # add_executable(SeqMatrixMultiply ${SOURCE_DIR}/SeqMatrixMultiply.c)
 # target_link_libraries(SeqMatrixMultiply BLAS::BLAS)

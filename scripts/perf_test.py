@@ -12,7 +12,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 
 TIME_PATTERNS = {
@@ -33,6 +33,7 @@ class RunResult:
 
 @dataclass
 class SizeResult:
+    np: int
     nrows_a: int
     ncols_a: int
     nrows_b: int
@@ -60,7 +61,11 @@ def _mean_optional(values: Iterable[Optional[float]]) -> Optional[float]:
 
 
 def parse_timings(stdout: str) -> RunResult:
-    values = {"MPI": None, "Rough simple sequential": None, "CBLAS": None}
+    values: Dict[str, Optional[float]] = {
+        "MPI": None,
+        "Rough simple sequential": None,
+        "CBLAS": None,
+    }
     for line in stdout.splitlines():
         for key, pat in TIME_PATTERNS.items():
             match = pat.match(line.strip())
@@ -84,13 +89,20 @@ def run_once(mpirun: str, exe_path: str, np: int, size: Tuple[int, int, int, int
     return parse_timings(completed.stdout)
 
 
-def parse_sizes(size_args: Iterable[str]) -> List[Tuple[int, int, int, int]]:
+def parse_sizes(size_args: Sequence[Sequence[str]]) -> List[Tuple[int, int, int, int]]:
     sizes: List[Tuple[int, int, int, int]] = []
-    for s in size_args:
-        parts = [p.strip() for p in s.split(",") if p.strip()]
+    for raw_parts in size_args:
+        if len(raw_parts) == 1 and "," in raw_parts[0]:
+            parts = [p.strip() for p in raw_parts[0].split(",") if p.strip()]
+        else:
+            parts = list(raw_parts)
         if len(parts) != 4:
-            raise ValueError(f"Invalid size '{s}'. Expected 4 comma-separated ints.")
-        sizes.append(tuple(int(p) for p in parts))
+            raise ValueError(
+                f"Invalid size specification '{' '.join(raw_parts)}'. "
+                "Expected either '--size a,b,c,d' or '--size a b c d'."
+            )
+        nrows_a, ncols_a, nrows_b, ncols_b = (int(p) for p in parts)
+        sizes.append((nrows_a, ncols_a, nrows_b, ncols_b))
     return sizes
 
 
@@ -99,6 +111,7 @@ def write_csv(path: str, results: List[SizeResult]) -> None:
         writer = csv.writer(f)
         writer.writerow(
             [
+                "np",
                 "n_matrixA_row",
                 "n_matrixA_col",
                 "n_matrixB_row",
@@ -113,6 +126,7 @@ def write_csv(path: str, results: List[SizeResult]) -> None:
             mpi, seq, cblas = res.mean()
             writer.writerow(
                 [
+                    res.np,
                     res.nrows_a,
                     res.ncols_a,
                     res.nrows_b,
@@ -133,7 +147,14 @@ def main() -> int:
         help="Path to MPIMatrixMultiply_bsp",
     )
     parser.add_argument("--mpirun", default="mpirun", help="mpirun command")
-    parser.add_argument("--np", type=int, help="MPI process count")
+    parser.add_argument(
+        "--np",
+        dest="nps",
+        action="append",
+        type=int,
+        required=True,
+        help="MPI process count. Can repeat, e.g. --np 4 --np 8",
+    )
     parser.add_argument("--runs", type=int, default=5, help="Runs per size")
     parser.add_argument(
         "--out",
@@ -143,29 +164,32 @@ def main() -> int:
     parser.add_argument(
         "--size",
         action="append",
+        nargs="+",
         required=True,
-        help="Matrix size as 'nArow,nAcol,nBrow,nBcol'. Can repeat.",
+        help="Matrix size as 'nArow,nAcol,nBrow,nBcol' or 'nArow nAcol nBrow nBcol'. Can repeat.",
     )
 
     args = parser.parse_args()
     sizes = parse_sizes(args.size)
 
     results: List[SizeResult] = []
-    for size in sizes:
-        runs: List[RunResult] = []
-        for _ in range(args.runs):
-            runs.append(run_once(args.mpirun, args.exe, args.np, size))
-        size_result = SizeResult(*size, runs=runs)
-        results.append(size_result)
-        mpi, seq, cblas = size_result.mean()
-        print(
-            "Size {size}: MPI={mpi}, Seq={seq}, CBLAS={cblas}".format(
-                size=",".join(str(x) for x in size),
-                mpi="" if mpi is None else f"{mpi:.6f}",
-                seq="" if seq is None else f"{seq:.6f}",
-                cblas="" if cblas is None else f"{cblas:.6f}",
+    for np in args.nps:
+        for size in sizes:
+            runs: List[RunResult] = []
+            for _ in range(args.runs):
+                runs.append(run_once(args.mpirun, args.exe, np, size))
+            size_result = SizeResult(np=np, nrows_a=size[0], ncols_a=size[1], nrows_b=size[2], ncols_b=size[3], runs=runs)
+            results.append(size_result)
+            mpi, seq, cblas = size_result.mean()
+            print(
+                "np={np}, Size {size}: MPI={mpi}, Seq={seq}, CBLAS={cblas}".format(
+                    np=np,
+                    size=",".join(str(x) for x in size),
+                    mpi="" if mpi is None else f"{mpi:.6f}",
+                    seq="" if seq is None else f"{seq:.6f}",
+                    cblas="" if cblas is None else f"{cblas:.6f}",
+                )
             )
-        )
 
     write_csv(args.out, results)
     print(f"Wrote {len(results)} size entries to {args.out}")
