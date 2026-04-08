@@ -32,12 +32,32 @@ void print_matrix(double** matrix, int n_row, int n_col) {
 }
 
 void print_matrix_less(double** matrix, int n_row, int n_col, int n_show_row, int n_show_col) {
+    if(n_show_row > n_row || n_show_col > n_col){
+        printf("Error: matrix showcase size (%d,%d) outrange the actual matrix (%d,%d)", n_show_row, n_show_col, n_row, n_col);
+        return;
+    }
     printf("---------------------------------------------\n");
     printf("The top-left %d x %d block of the matrix:\n", n_show_row, n_show_col);
     for (int i = 0; i < n_row && i < n_show_row; i++) {
         printf("|");
         for (int j = 0; j < n_col && j < n_show_col; j++) {
             printf("%.6f ", matrix[i][j]);
+        }
+        printf("|\n");
+    }
+}
+
+void print_L_matrix_less(double* matrix_L, int n_row, int n_col, int n_show_row, int n_show_col) {
+    if(n_show_row > n_row || n_show_col > n_col){
+        printf("Error: matrix showcase size (%d,%d) outrange the actual matrix (%d,%d)", n_show_row, n_show_col, n_row, n_col);
+        return;
+    }
+    printf("---------------------------------------------\n");
+    printf("The top-left %d x %d block of the matrix:\n", n_show_row, n_show_col);
+    for (int i = 0; i < n_row && i < n_show_row; i++) {
+        printf("|");
+        for (int j = 0; j < n_col && j < n_show_col; j++) {
+            printf("%.6f ", matrix_L[i * n_row + j]);
         }
         printf("|\n");
     }

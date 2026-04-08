@@ -19,11 +19,13 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-/* #define NON_BLOCKING_COMMUNICATION 1 */
-/* #define MPI_COMPUTATION_USE_BLAS 1 */
-/* #define ADD_RSSEQ_COMPARE 0 */
 
 int main(int argc, char* argv[]) {
+    printf("]> Demostration program: comprehensive example of matrix multiply.\n");
+    printf("]> Algorithm options: \n\tMPI (including option of |Rough Simple sequential|CBLAS calculation| for worker indexes) \n\tRough Simple sequential \n\t CBLAS sequential.\n");
+    printf("]> Other options: \n\tMPI communication |blocking|non-blocking| \n\tMPI index debug info |on|off|");
+    printf("]> Edit CMakeLists.txt compilation macro definitions for tuning all the options.");    
+    printf("=======================================================");
     int n_matrix_A_row, n_matrix_A_col, n_matrix_B_row, n_matrix_B_col;
     if (argc == 1) {
         n_matrix_A_row = 1000;
@@ -48,8 +50,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // default np = n cores of you hardware, use -np N to specify the number of
-    // processes
+    // default np = n cores of you hardware, use -np N to specify the number of processes
     int num_processor;
     int myrank;
     double swtime, ewtime, swtime_cblas, ewtime_cblas, swtime_seq, ewtime_seq;
@@ -62,8 +63,6 @@ int main(int argc, char* argv[]) {
         double** matrix_B = generate_matrix(n_matrix_B_row, n_matrix_B_col);
         double** matrix_result = make_matrix(n_matrix_A_row, n_matrix_B_col);
         double** matrix_result_cblas = make_matrix(n_matrix_A_row, n_matrix_B_col);
-        /* double **matrix_result_seq = make_matrix(n_matrix_A_row, n_matrix_B_col);
-         */
 
         double* L_A = linearlize_matrix(matrix_A, n_matrix_A_row, n_matrix_A_col);
         int n_avg_task_row = n_matrix_A_row / (num_processor - 1);
@@ -101,7 +100,7 @@ int main(int argc, char* argv[]) {
         for (int worker_rank = 1; worker_rank < num_processor; worker_rank++) {
             int n_row_recv = worker_rank <= n_remainder_task_row ? n_avg_task_row + 1 : n_avg_task_row;
 #if NON_BLOCKING_COMMUNICATION
-            // non-blo cking receive, the faster worker result get earlier
+            // non-blocking receive, the faster worker result get earlier
             MPI_Irecv(matrix_result[row_offset], n_row_recv * n_matrix_B_col,
                       MPI_DOUBLE, worker_rank, worker_rank, MPI_COMM_WORLD,
                       &recv_requests[worker_rank - 1]);
@@ -119,7 +118,6 @@ int main(int argc, char* argv[]) {
 #endif
         // conclude
         ewtime = MPI_Wtime();
-        // printf("MPI Computation completed.\n");
         printf("MPI Result matrix showcase:\n");
         print_matrix_less(matrix_result, n_matrix_A_row, n_matrix_B_col, 5, 5);
         printf("[Time taken] MPI: %f seconds\n", ewtime - swtime);
@@ -168,8 +166,7 @@ int main(int argc, char* argv[]) {
         double* L_result =  matrix_multiply_matrix_linear(L_A_recv, L_B, n_row_recv, n_matrix_A_col, n_matrix_B_col);
 #endif
         debug_proc(myrank, "Computed result for %d rows\n", n_row_recv);
-        // send the result back to process 0, blocking send in case L_result changes
-        // before the non-blocking send is completed
+        // send the result back to process 0, blocking send in case L_result be changed before the non-blocking send is completed
         MPI_Send(L_result, n_row_recv * n_matrix_B_col, MPI_DOUBLE, 0, myrank, MPI_COMM_WORLD);
         debug_proc(myrank, "Sent result back to process 0\n");
     }
